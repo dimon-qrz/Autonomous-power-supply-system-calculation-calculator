@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PowerCalc UA — Автономна Енергосистема (з MPPT & Сонячними панелями)</title>
+    <title>PowerCalc UA — Резервне & Сонячне Живлення</title>
     <style>
         :root {
             --bg-dark: #0f172a;
@@ -27,21 +27,26 @@
         header p { color: var(--text-muted); font-size: 0.95rem; }
 
         .grid-layout { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        @media(min-width: 900px) { .grid-layout { grid-template-columns: 1.1fr 0.9fr; } }
+        @media(min-width: 900px) { .grid-layout { grid-template-columns: 1.15fr 0.85fr; } }
 
         .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         .card h2 { font-size: 1.2rem; margin-bottom: 15px; color: var(--accent-blue); display: flex; align-items: center; gap: 8px; }
 
-        .appliance-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .appliance-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
         .appliance-item:last-child { border-bottom: none; }
-        .appliance-info { flex: 2; }
+        .appliance-info { flex: 1.5; min-width: 200px; }
         .appliance-name { font-weight: 600; font-size: 0.95rem; }
-        .appliance-power { font-size: 0.8rem; color: var(--text-muted); }
-        .appliance-inputs { flex: 1.5; display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
+        .appliance-power-desc { font-size: 0.8rem; color: var(--text-muted); }
+        .appliance-inputs { flex: 2; display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
         
         input[type="number"], select {
             background: #0f172a; border: 1px solid var(--border); color: var(--text-main);
             padding: 5px 8px; border-radius: 6px; width: 85px; text-align: center; font-size: 0.9rem;
+        }
+
+        .custom-power-input {
+            width: 90px !important;
+            border-color: var(--accent-amber) !important;
         }
 
         .slider-group { margin-bottom: 15px; }
@@ -53,7 +58,7 @@
 
         .metric-box { background: #0f172a; border-radius: 8px; padding: 12px; border-left: 4px solid var(--accent-blue); }
         .metric-title { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        .metric-value { font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 3px 0; }
+        .metric-value { font-size: 1.35rem; font-weight: 700; color: var(--text-main); margin: 3px 0; }
         .metric-sub { font-size: 0.8rem; color: var(--accent-green); }
 
         .chem-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.82rem; }
@@ -63,13 +68,14 @@
         .badge-warn { color: var(--accent-amber); font-weight: bold; }
         .badge-success { color: var(--accent-green); font-weight: bold; }
         .badge-purple { color: var(--accent-purple); font-weight: bold; }
+        .badge-red { color: var(--accent-red); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>⚡ PowerCalc UA: Резервне та Сонячне Живлення</h1>
+        <h1>⚡ PowerCalc UA: Резервне & Сонячне Живлення</h1>
         <p>Розрахунок Інвертора, LiFePO4/Li-ion Акумуляторів, MPPT та Сонячного Масиву</p>
     </header>
 
@@ -86,9 +92,9 @@
                 <div class="slider-group">
                     <div class="slider-label">
                         <span>Час автономної роботи від АКБ:</span>
-                        <span id="outage-val" class="badge-warn">8 год</span>
+                        <span id="outage-val" class="badge-warn">6 год</span>
                     </div>
-                    <input type="range" id="outage-hours" min="1" max="24" value="8">
+                    <input type="range" id="outage-hours" min="1" max="24" value="6">
                 </div>
 
                 <div class="slider-group">
@@ -101,7 +107,7 @@
             </div>
 
             <div class="card">
-                <h2>☀️ 3. Параметри Сонячної Генерації</h2>
+                <h2>☀️ 3. Сонячна Генерація (PV & MPPT)</h2>
                 <div class="slider-group">
                     <div class="slider-label">
                         <span>Сезонозалежна інсоляція в Україні (PSH):</span>
@@ -158,7 +164,7 @@
                     <div class="metric-box" style="border-left-color: var(--accent-amber);">
                         <div class="metric-title">MPPT Контролер</div>
                         <div class="metric-value" id="res-mppt-current">0 А</div>
-                        <div class="metric-sub" id="res-mppt-voltage">Напруга шини: 0V</div>
+                        <div class="metric-sub" id="res-mppt-voltage">Шина АКБ: 0V</div>
                     </div>
                 </div>
             </div>
@@ -203,14 +209,16 @@
 
 <script>
 const appliances = [
-    { name: "Холодильник (інверторний)", power: 80, surge: 300, defaultOn: true, hours: 8 },
-    { name: "Газовий котел / Циркуляційний насос", power: 110, surge: 250, defaultOn: true, hours: 8 },
-    { name: "Wi-Fi Роутер + ONU Термінал", power: 18, surge: 18, defaultOn: true, hours: 8 },
-    { name: "Освітлення LED (квартира/будинок)", power: 40, surge: 40, defaultOn: true, hours: 5 },
-    { name: "Ноутбук / Робоча станція", power: 70, surge: 70, defaultOn: true, hours: 6 },
-    { name: "Насосна станція (Сквожина)", power: 900, surge: 2400, defaultOn: false, hours: 0.5 },
-    { name: "Телевізор", power: 90, surge: 90, defaultOn: false, hours: 4 },
-    { name: "Зарядні пристрої гаджетів", power: 50, surge: 50, defaultOn: true, hours: 4 }
+    { id: 'heating', name: "🔥 Електроопалення (Котел/Конвектори)", power: 2000, surgeRatio: 1.0, isCustom: true, defaultOn: false, hours: 4 },
+    { id: 'stove', name: "🍳 Електроплита / Варильна поверхня", power: 1500, surgeRatio: 1.0, isCustom: true, defaultOn: false, hours: 1 },
+    { id: 'fridge', name: "❄️ Холодильник (інверторний)", power: 80, surgeRatio: 3.75, isCustom: false, defaultOn: true, hours: 6 },
+    { id: 'gas_boiler', name: "🔥 Газовий котел / Циркуляційний насос", power: 110, surgeRatio: 2.27, isCustom: false, defaultOn: true, hours: 6 },
+    { id: 'router', name: "🌐 Wi-Fi Роутер + ONU Термінал", power: 18, surgeRatio: 1.0, isCustom: false, defaultOn: true, hours: 6 },
+    { id: 'light', name: "💡 Освітлення LED (квартира/будинок)", power: 40, surgeRatio: 1.0, isCustom: false, defaultOn: true, hours: 4 },
+    { id: 'laptop', name: "💻 Ноутбук / Робоча станція", power: 70, surgeRatio: 1.0, isCustom: false, defaultOn: true, hours: 5 },
+    { id: 'water_pump', name: "🚰 Насосна станція (Сквожина)", power: 900, surgeRatio: 2.66, isCustom: false, defaultOn: false, hours: 0.5 },
+    { id: 'tv', name: "📺 Телевізор", power: 90, surgeRatio: 1.0, isCustom: false, defaultOn: false, hours: 3 },
+    { id: 'gadgets', name: "📱 Зарядні пристрої гаджетів", power: 50, surgeRatio: 1.0, isCustom: false, defaultOn: true, hours: 3 }
 ];
 
 function initApp() {
@@ -220,10 +228,15 @@ function initApp() {
     appliances.forEach((app, idx) => {
         const item = document.createElement('div');
         item.className = 'appliance-item';
+        
+        let powerInputHtml = app.isCustom 
+            ? `<input type="number" id="app-power-${idx}" value="${app.power}" min="100" max="10000" step="100" class="custom-power-input" onchange="calculate()"> Вт`
+            : `<span style="font-size: 0.85rem; color: var(--text-muted);">${app.power} Вт</span>`;
+
         item.innerHTML = `
             <div class="appliance-info">
                 <div class="appliance-name">${app.name}</div>
-                <div class="appliance-power">Робоча: ${app.power} Вт | Пускова: ${app.surge} Вт</div>
+                <div class="appliance-power-desc">Потужність: ${powerInputHtml}</div>
             </div>
             <div class="appliance-inputs">
                 <input type="checkbox" id="app-check-${idx}" ${app.defaultOn ? 'checked' : ''} onchange="calculate()">
@@ -258,28 +271,35 @@ function calculate() {
     appliances.forEach((app, idx) => {
         const isChecked = document.getElementById(`app-check-${idx}`).checked;
         if (isChecked) {
+            let power = app.power;
+            if (app.isCustom) {
+                const customVal = parseFloat(document.getElementById(`app-power-${idx}`).value);
+                power = isNaN(customVal) ? app.power : customVal;
+            }
+
             let hours = parseFloat(document.getElementById(`app-hours-${idx}`).value);
             if (hours > outageHours) hours = outageHours;
 
-            totalEnergyWh += app.power * hours;
-            maxRunningPower += app.power;
+            totalEnergyWh += power * hours;
+            maxRunningPower += power;
             
-            if (app.surge > app.power) {
-                maxSurgePower = Math.max(maxSurgePower, maxRunningPower + (app.surge - app.power));
+            const surgePower = power * app.surgeRatio;
+            if (surgePower > power) {
+                maxSurgePower = Math.max(maxSurgePower, maxRunningPower + (surgePower - power));
             }
         }
     });
 
-    if (maxSurgePower === 0) maxSurgePower = maxRunningPower * 1.3;
+    if (maxSurgePower === 0) maxSurgePower = maxRunningPower * 1.25;
 
-    // Розрахунок батареї: ККД 88%, DoD 90%, Коефіцієнт запасу 15%
+    // Розрахунок АКБ: ККД 88%, DoD 90%, Коефіцієнт запасу 15%
     const requiredBatWh = Math.round(totalEnergyWh / (0.88 * 0.90) * 1.15);
-    const recInverterWatts = Math.round(Math.max(maxRunningPower * 1.25, maxSurgePower / 1.5));
+    const recInverterWatts = Math.round(Math.max(maxRunningPower * 1.25, maxSurgePower / 1.4));
 
-    // Напруга системної шини DC
+    // Автоматичний підбір напруги системної шини (12.8V / 25.6V / 51.2V)
     let systemVoltage = 12.8;
-    if (requiredBatWh > 2200 && requiredBatWh <= 4500) systemVoltage = 25.6;
-    if (requiredBatWh > 4500) systemVoltage = 51.2;
+    if (requiredBatWh > 2200 && requiredBatWh <= 4800) systemVoltage = 25.6;
+    if (requiredBatWh > 4800 || recInverterWatts > 3500) systemVoltage = 51.2;
 
     const batteryAh = Math.round(requiredBatWh / systemVoltage);
 
@@ -287,12 +307,9 @@ function calculate() {
     const chargePowerReq = Math.round(requiredBatWh / (chargeWindow * 0.88));
     const chargeCurrentReq = Math.round(chargePowerReq / systemVoltage);
 
-    // --- РОЗРАХУНОК СОНЯЧНОЇ СИСТЕМИ (PV & MPPT) ---
-    // ККД тракту сонячної системи ~85%
+    // Розрахунок сонячної системи (PV & MPPT)
     const requiredPvWatts = Math.round(totalEnergyWh / (psh * 0.85));
-    const panelCount = Math.ceil(requiredPvWatts / 450); // стандартні панелі по 450 Вт
-    
-    // Струм MPPT = Потужність PV / Напруга АКБ + 20% запас по струму
+    const panelCount = Math.ceil(requiredPvWatts / 450);
     const mpptCurrent = Math.round((requiredPvWatts / systemVoltage) * 1.2);
 
     // Оновлення DOM
@@ -306,7 +323,7 @@ function calculate() {
     document.getElementById('res-battery-ah').innerText = `@${systemVoltage}V: ~${batteryAh} А·год`;
 
     document.getElementById('res-charge-current').innerText = `${chargeCurrentReq} А`;
-    document.getElementById('res-charge-power').innerText = `Споживання від мережі: ~${chargePowerReq} Вт`;
+    document.getElementById('res-charge-power').innerText = `Мережа під час заряду: ~${chargePowerReq} Вт`;
 
     document.getElementById('res-pv-power').innerText = `${requiredPvWatts} Вт`;
     document.getElementById('res-pv-count').innerText = `~${panelCount} шт. панелей (по 450Вт)`;
@@ -318,4 +335,4 @@ function calculate() {
 window.onload = initApp;
 </script>
 </body>
-</html> 
+</html>
