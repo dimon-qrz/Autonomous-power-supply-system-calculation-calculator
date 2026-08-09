@@ -1,2 +1,4 @@
 # Autonomous-power-supply-system-calculation-calculator
-Калькулятор Для розрахунку системи автономного живлення в умовах жорстких графіків відключень
+Calculator for calculating the autonomous power supply system of a house when Russian terrorists attacked the country's energy system
+
+Калькулятор розрахунку системи автономного живлення будинку коли російські терористи атакували енергетику країни  
